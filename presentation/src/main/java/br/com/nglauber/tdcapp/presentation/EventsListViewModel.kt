@@ -18,15 +18,13 @@ class EventsListViewModel(
 
     fun fetchEvents() {
         state.postValue(ViewState(ViewState.Status.LOADING))
-        getEvents.execute(null,
-                { eventList ->
-                    val list = eventList.map { mapper.fromDomain(it) }
-                    state.postValue(ViewState(ViewState.Status.SUCCESS, list))
-                },
-                { e ->
-                    state.postValue(ViewState(ViewState.Status.ERROR, error = e))
-                }
-        )
+        getEvents.execute {
+            onNext { eventList ->
+                val list = eventList.map { mapper.fromDomain(it) }
+                state.postValue(ViewState(ViewState.Status.SUCCESS, list))
+            }
+            onError { error -> state.postValue(ViewState(ViewState.Status.ERROR, error = error)) }
+        }
     }
 
     @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)

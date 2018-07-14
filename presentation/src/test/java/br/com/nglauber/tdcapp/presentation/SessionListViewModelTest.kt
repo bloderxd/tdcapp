@@ -15,23 +15,19 @@ import org.mockito.Captor
 
 @RunWith(JUnit4::class)
 class SessionListViewModelTest {
-    @get:Rule
-    var instantTaskExecutorRule = InstantTaskExecutorRule()
+
+    @get:Rule var instantTaskExecutorRule = InstantTaskExecutorRule()
 
     private var getSessionsByModality = mock<GetSessionsByModality>()
     private var sessionListViewModel = SessionListViewModel(getSessionsByModality, SessionMapper())
 
-    @Captor
-    private val captor = argumentCaptor<((List<Session>) -> Unit)>()
-
-    @Captor
-    private val captorError = argumentCaptor<((Throwable) -> Unit)>()
+    @Captor private val captor = argumentCaptor<((List<Session>) -> Unit)>()
+    @Captor private val captorError = argumentCaptor<((Throwable) -> Unit)>()
 
     @Test
     fun fetchSessionsExecutesUseCase() {
         sessionListViewModel.fetchSessionsByModality(1, 2)
-        verify(getSessionsByModality, times(1))
-                .execute(any(), any(), any(), eq(null))
+        verify(getSessionsByModality, times(1)).execute(any())
     }
 
     @Test
@@ -39,15 +35,11 @@ class SessionListViewModelTest {
         val eventId = 1L
         val modalityId = 2L
         val sessions = DomainDataFactory.makeSessionsList(2)
-
         sessionListViewModel.fetchSessionsByModality(eventId, modalityId)
-
-        verify(getSessionsByModality).execute(any(), captor.capture(), any(), eq(null))
+        verify(getSessionsByModality).execute(any()) { onNext { captor.capture() } }
         captor.firstValue.invoke(sessions)
-
         assertEquals(eventId, sessionListViewModel.eventId)
         assertEquals(modalityId, sessionListViewModel.modalityId)
-
         assertEquals(
                 ViewState.Status.SUCCESS,
                 sessionListViewModel.getState().value?.status)
@@ -58,11 +50,9 @@ class SessionListViewModelTest {
         val mapper = SessionMapper()
         val sessions = DomainDataFactory.makeSessionsList(2)
         val sessionBindings = sessions.map { mapper.fromDomain(it) }
-
         sessionListViewModel.fetchSessionsByModality(1, 2)
-        verify(getSessionsByModality).execute(any(), captor.capture(), any(), eq(null))
+        verify(getSessionsByModality).execute(any()) { onNext { captor.capture() } }
         captor.firstValue.invoke(sessions)
-
         assertEquals(
                 sessionBindings,
                 sessionListViewModel.getState().value?.data
@@ -73,9 +63,11 @@ class SessionListViewModelTest {
     fun fetchSessionsReturnsError() {
         //TODO this test is weird...
         sessionListViewModel.fetchSessionsByModality(1, 2)
-        verify(getSessionsByModality).execute(any(), captor.capture(), captorError.capture(), eq(null))
+        verify(getSessionsByModality).execute(any()) {
+            onNext { captor.capture() }
+            onError { captorError.capture() }
+        }
         captorError.firstValue.invoke(RuntimeException())
-
         assertEquals(
                 ViewState.Status.ERROR,
                 sessionListViewModel.getState().value?.status)

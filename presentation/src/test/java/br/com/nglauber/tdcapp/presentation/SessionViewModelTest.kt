@@ -22,8 +22,8 @@ import org.mockito.Captor
 
 @RunWith(JUnit4::class)
 class SessionViewModelTest {
-    @get:Rule
-    var instantTaskExecutorRule = InstantTaskExecutorRule()
+
+    @get:Rule var instantTaskExecutorRule = InstantTaskExecutorRule()
 
     private val speakerMapper = SpeakerMapper(MemberMapper(), MiniBioMapper()) // TODO improve this
     private val sessionMapper = SessionMapper()
@@ -32,17 +32,13 @@ class SessionViewModelTest {
     private var unbookmarkSesion = mock<UnbookmarkSession>()
     private var sessionViewModel = SessionViewModel(getSpeakersBySession, bookmarkSession, unbookmarkSesion, sessionMapper, speakerMapper)
 
-    @Captor
-    private val captor = argumentCaptor<((List<Speaker>) -> Unit)>()
-
-    @Captor
-    private val captorError = argumentCaptor<((Throwable) -> Unit)>()
+    @Captor private val captor = argumentCaptor<((List<Speaker>) -> Unit)>()
+    @Captor private val captorError = argumentCaptor<((Throwable) -> Unit)>()
 
     @Test
     fun fetchSpeakersExecutesUseCase() {
         sessionViewModel.fetchSpeakersBySession(1, 2, PresentationDataFactory.makeSession())
-        verify(getSpeakersBySession, times(1))
-                .execute(any(), any(), any(), eq(null))
+        verify(getSpeakersBySession, times(1)).execute()
     }
 
     @Test
@@ -51,12 +47,9 @@ class SessionViewModelTest {
         val modality = 2L
         val sessionBinding = PresentationDataFactory.makeSession()
         val speakers = DomainDataFactory.makeSpeakersList(2)
-
         sessionViewModel.fetchSpeakersBySession(eventId, modality, sessionBinding)
-
-        verify(getSpeakersBySession).execute(any(), captor.capture(), any(), eq(null))
+        verify(getSpeakersBySession).execute(any()) { onNext { captor.capture() } }
         captor.firstValue.invoke(speakers)
-
         assertEquals(
                 ViewState.Status.SUCCESS,
                 sessionViewModel.getState().value?.status)
@@ -67,14 +60,11 @@ class SessionViewModelTest {
         val eventId = 1L
         val modality = 2L
         val sessionBinding = PresentationDataFactory.makeSession()
-
         val speakers = DomainDataFactory.makeSpeakersList(2)
         val speakerBindings = speakers.map { speakerMapper.fromDomain(it) }
-
         sessionViewModel.fetchSpeakersBySession(eventId, modality, sessionBinding)
-        verify(getSpeakersBySession).execute(any(), captor.capture(), any(), eq(null))
+        verify(getSpeakersBySession).execute(any()) { onNext { captor.capture() } }
         captor.firstValue.invoke(speakers)
-
         val map = sessionBinding to speakerBindings
         assertEquals(
                 map,
@@ -84,15 +74,16 @@ class SessionViewModelTest {
 
     @Test
     fun fetchSpeakersReturnsError() {
+        //TODO this test is weird...
         val eventId = 1L
         val modality = 2L
         val sessionBinding = PresentationDataFactory.makeSession()
-
-        //TODO this test is weird...
         sessionViewModel.fetchSpeakersBySession(eventId, modality, sessionBinding)
-        verify(getSpeakersBySession).execute(any(), captor.capture(), captorError.capture(), eq(null))
+        verify(getSpeakersBySession).execute(any()) {
+            onNext { captor.capture() }
+            onError { captorError.capture() }
+        }
         captorError.firstValue.invoke(RuntimeException())
-
         Assert.assertEquals(
                 ViewState.Status.ERROR,
                 sessionViewModel.getState().value?.status)

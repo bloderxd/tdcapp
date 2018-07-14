@@ -15,35 +15,28 @@ import org.mockito.Captor
 
 @RunWith(JUnit4::class)
 class ModalityListViewModelTest {
-    @get:Rule
-    var instantTaskExecutorRule = InstantTaskExecutorRule()
+
+    @get:Rule var instantTaskExecutorRule = InstantTaskExecutorRule()
 
     private var getModalitiesByEvent = mock<GetModalitiesByEvent>()
     private var modalityListViewModel = ModalityListViewModel(getModalitiesByEvent, ModalityMapper())
 
-    @Captor
-    private val captor = argumentCaptor<((List<Modality>) -> Unit)>()
-
-    @Captor
-    private val captorError = argumentCaptor<((Throwable) -> Unit)>()
+    @Captor private val captor = argumentCaptor<((List<Modality>) -> Unit)>()
+    @Captor private val captorError = argumentCaptor<((Throwable) -> Unit)>()
 
     @Test
     fun fetchModalityExecutesUseCase() {
         modalityListViewModel.fetchModalities(1)
-        verify(getModalitiesByEvent, times(1))
-                .execute(any(), any(), any(), eq(null))
+        verify(getModalitiesByEvent, times(1)).execute(any())
     }
 
     @Test
     fun fetchModalitiesReturnsSuccess() {
         val eventId = 1L
         val modalities = DomainDataFactory.makeModalitiesList(2)
-
         modalityListViewModel.fetchModalities(eventId)
-
-        verify(getModalitiesByEvent).execute(any(), captor.capture(), any(), eq(null))
+        verify(getModalitiesByEvent).execute(any()) { onNext { captor.capture() } }
         captor.firstValue.invoke(modalities)
-
         assertEquals(
                 ViewState.Status.SUCCESS,
                 modalityListViewModel.getState().value?.status)
@@ -53,17 +46,13 @@ class ModalityListViewModelTest {
     fun fetchModalitiesReturnsData() {
         val mapper = ModalityMapper()
         val modalities = DomainDataFactory.makeModalitiesList(2)
-        val modalityBindings = modalities.map { mapper.fromDomain(it) }
-
         modalityListViewModel.fetchModalities(1)
-        verify(getModalitiesByEvent).execute(any(), captor.capture(), any(), eq(null))
+        verify(getModalitiesByEvent).execute(any()) { onNext { captor.capture() } }
         captor.firstValue.invoke(modalities)
-
         val bindingsMap = modalities
                 .map { mapper.fromDomain(it) }
                 .sortedWith(compareBy({ it.date }, { it.positionOnEvent }))
                 .groupBy { it.date }
-
         assertEquals(
                 bindingsMap,
                 modalityListViewModel.getState().value?.data
@@ -74,9 +63,11 @@ class ModalityListViewModelTest {
     fun fetchModalitiesReturnsError() {
         //TODO this test is weird...
         modalityListViewModel.fetchModalities(1)
-        verify(getModalitiesByEvent).execute(any(), captor.capture(), captorError.capture(), eq(null))
+        verify(getModalitiesByEvent).execute(any()) {
+            onNext { captor.capture() }
+            onError { captorError.capture() }
+        }
         captorError.firstValue.invoke(RuntimeException())
-
         assertEquals(
                 ViewState.Status.ERROR,
                 modalityListViewModel.getState().value?.status)

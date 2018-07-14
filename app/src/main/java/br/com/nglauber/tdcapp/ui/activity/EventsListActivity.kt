@@ -15,7 +15,7 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class EventsListActivity : AppCompatActivity() {
 
-    private val viewModel: EventsListViewModel  by viewModel()
+    private val viewModel: EventsListViewModel by viewModel()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
