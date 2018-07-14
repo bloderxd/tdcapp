@@ -24,16 +24,13 @@ class SessionListViewModel (
 
         state.postValue(ViewState(ViewState.Status.LOADING))
 
-        getSessions.execute(
-                GetSessionsByModality.Params(eventId, modalityId),
-                { sessionList ->
-                    val list = sessionList.map { mapper.fromDomain(it) }
-                    state.postValue(ViewState(ViewState.Status.SUCCESS, list))
-                },
-                { e ->
-                    state.postValue(ViewState(ViewState.Status.ERROR, error = e))
-                }
-        )
+        getSessions.execute(GetSessionsByModality.Params(eventId, modalityId)) {
+            onNext { sessionList ->
+                val list = sessionList.map { mapper.fromDomain(it) }
+                state.postValue(ViewState(ViewState.Status.SUCCESS, list))
+            }
+            onError { state.postValue(ViewState(ViewState.Status.ERROR, error = it)) }
+        }
     }
 
     @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)
